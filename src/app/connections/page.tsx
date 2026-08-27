@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users2 } from "lucide-react";
 import type { Recruiter, Swipe } from "@/lib/types";
+import { API_BASE } from "@/lib/api";
 
 type Connection = { swipe: Swipe; recruiter: Recruiter };
 
@@ -10,7 +11,7 @@ export default function ConnectionsPage() {
   const [connections, setConnections] = useState<Connection[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/matches/recruiters")
+    fetch(`${API_BASE}/matches/recruiters`)
       .then((r) => r.json())
       .then(setConnections)
       .catch(() => setConnections([]));

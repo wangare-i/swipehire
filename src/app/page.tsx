@@ -6,6 +6,7 @@ import SwipeDeck from "@/components/SwipeDeck";
 import JobCard from "@/components/JobCard";
 import RecruiterCard from "@/components/RecruiterCard";
 import type { Job, Recruiter } from "@/lib/types";
+import { API_BASE } from "@/lib/api";
 
 type Mode = "jobs" | "recruiters";
 
@@ -15,11 +16,11 @@ export default function DiscoverPage() {
   const [recruiters, setRecruiters] = useState<Recruiter[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/jobs")
+    fetch(`${API_BASE}/jobs`)
       .then((r) => r.json())
       .then(setJobs)
       .catch(() => setJobs([]));
-    fetch("/api/recruiters")
+    fetch(`${API_BASE}/recruiters`)
       .then((r) => r.json())
       .then(setRecruiters)
       .catch(() => setRecruiters([]));
@@ -30,7 +31,7 @@ export default function DiscoverPage() {
     targetId: string,
     direction: "like" | "pass"
   ) => {
-    await fetch("/api/swipes", {
+    await fetch(`${API_BASE}/swipes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetType, targetId, direction }),

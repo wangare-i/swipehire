@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
 import type { Job, Swipe, ApplicationStatus } from "@/lib/types";
+import { API_BASE } from "@/lib/api";
 
 type Match = { swipe: Swipe; job: Job };
 
@@ -26,7 +27,7 @@ export default function MatchesPage() {
   const [matches, setMatches] = useState<Match[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/matches/jobs")
+    fetch(`${API_BASE}/matches/jobs`)
       .then((r) => r.json())
       .then(setMatches)
       .catch(() => setMatches([]));
@@ -39,7 +40,7 @@ export default function MatchesPage() {
           m.swipe.id === swipeId ? { ...m, swipe: { ...m.swipe, status } } : m
         ) ?? null
     );
-    await fetch("/api/matches/jobs", {
+    await fetch(`${API_BASE}/matches/jobs`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ swipeId, status }),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MessageCircle, Heart, Send } from "lucide-react";
 import type { Post } from "@/lib/types";
+import { API_BASE } from "@/lib/api";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -21,7 +22,7 @@ export default function FeedPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/posts")
+    fetch(`${API_BASE}/posts`)
       .then((r) => r.json())
       .then(setPosts)
       .catch(() => setPosts([]));
@@ -32,7 +33,7 @@ export default function FeedPage() {
     setPosting(true);
     setError(null);
     try {
-      const res = await fetch("/api/posts", {
+      const res = await fetch(`${API_BASE}/posts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ author: "You", content }),
@@ -54,7 +55,7 @@ export default function FeedPage() {
         prev?.map((p) => (p.id === postId ? { ...p, likes: p.likes + 1 } : p)) ??
         null
     );
-    await fetch("/api/posts", {
+    await fetch(`${API_BASE}/posts`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId }),

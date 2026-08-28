@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { MessageCircle, Heart, Send } from "lucide-react";
 import type { Post } from "@/lib/types";
-import { API_BASE } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -16,27 +17,28 @@ function timeAgo(iso: string) {
 }
 
 export default function FeedPage() {
+  const { idToken, user } = useAuth();
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [content, setContent] = useState("");
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/posts`)
+    apiFetch("/posts", idToken)
       .then((r) => r.json())
       .then(setPosts)
       .catch(() => setPosts([]));
-  }, []);
+  }, [idToken]);
 
   const submit = async () => {
     if (!content.trim() || posting) return;
     setPosting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/posts`, {
+      const res = await apiFetch("/posts", idToken, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ author: "You", content }),
+        body: JSON.stringify({ author: user?.name ?? "You", content }),
       });
       if (!res.ok) throw new Error("Failed to post");
       const post = (await res.json()) as Post;
@@ -55,7 +57,7 @@ export default function FeedPage() {
         prev?.map((p) => (p.id === postId ? { ...p, likes: p.likes + 1 } : p)) ??
         null
     );
-    await fetch(`${API_BASE}/posts`, {
+    await apiFetch("/posts", idToken, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId }),

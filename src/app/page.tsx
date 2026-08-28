@@ -1,37 +1,39 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Flame, Briefcase, Users2 } from "lucide-react";
+import { Flame, Briefcase, Users2, LogOut } from "lucide-react";
 import SwipeDeck from "@/components/SwipeDeck";
 import JobCard from "@/components/JobCard";
 import RecruiterCard from "@/components/RecruiterCard";
 import type { Job, Recruiter } from "@/lib/types";
-import { API_BASE } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 type Mode = "jobs" | "recruiters";
 
 export default function DiscoverPage() {
+  const { idToken, signOut } = useAuth();
   const [mode, setMode] = useState<Mode>("jobs");
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [recruiters, setRecruiters] = useState<Recruiter[] | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/jobs`)
+    apiFetch("/jobs", idToken)
       .then((r) => r.json())
       .then(setJobs)
       .catch(() => setJobs([]));
-    fetch(`${API_BASE}/recruiters`)
+    apiFetch("/recruiters", idToken)
       .then((r) => r.json())
       .then(setRecruiters)
       .catch(() => setRecruiters([]));
-  }, []);
+  }, [idToken]);
 
   const swipe = async (
     targetType: "job" | "recruiter",
     targetId: string,
     direction: "like" | "pass"
   ) => {
-    await fetch(`${API_BASE}/swipes`, {
+    await apiFetch("/swipes", idToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetType, targetId, direction }),
@@ -45,7 +47,16 @@ export default function DiscoverPage() {
           <Flame className="text-pink-500" size={26} fill="currentColor" />
           <h1 className="text-xl font-extrabold tracking-tight">AjiraSwipe</h1>
         </div>
-        <ModeToggle mode={mode} setMode={setMode} />
+        <div className="flex items-center gap-2">
+          <ModeToggle mode={mode} setMode={setMode} />
+          <button
+            onClick={signOut}
+            aria-label="Sign out"
+            className="rounded-full bg-neutral-900 p-2 text-neutral-400 hover:text-neutral-200"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1">

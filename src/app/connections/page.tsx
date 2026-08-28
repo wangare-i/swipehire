@@ -3,19 +3,21 @@
 import { useEffect, useState } from "react";
 import { Users2 } from "lucide-react";
 import type { Recruiter, Swipe } from "@/lib/types";
-import { API_BASE } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 type Connection = { swipe: Swipe; recruiter: Recruiter };
 
 export default function ConnectionsPage() {
+  const { idToken } = useAuth();
   const [connections, setConnections] = useState<Connection[] | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/matches/recruiters`)
+    apiFetch("/matches/recruiters", idToken)
       .then((r) => r.json())
       .then(setConnections)
       .catch(() => setConnections([]));
-  }, []);
+  }, [idToken]);
 
   return (
     <div className="flex flex-col px-4 pt-6">

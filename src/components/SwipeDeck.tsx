@@ -6,22 +6,27 @@ import { X, Heart, PartyPopper } from "lucide-react";
 
 const SWIPE_THRESHOLD = 100;
 
-export default function SwipeDeck<T extends { id: string }>({
+export default function SwipeDeck<T>({
   items,
+  getKey,
   renderCard,
   onSwipe,
   emptyState,
 }: {
   items: T[];
+  getKey: (item: T) => string;
   renderCard: (item: T) => React.ReactNode;
-  onSwipe: (item: T, direction: "like" | "pass") => void;
+  onSwipe: (
+    item: T,
+    direction: "like" | "pass"
+  ) => void | boolean | Promise<void | boolean>;
   emptyState: React.ReactNode;
 }) {
   const [matchItem, setMatchItem] = useState<T | null>(null);
 
-  const handleSwipe = (item: T, direction: "like" | "pass") => {
-    onSwipe(item, direction);
-    if (direction === "like") {
+  const handleSwipe = async (item: T, direction: "like" | "pass") => {
+    const result = await onSwipe(item, direction);
+    if (direction === "like" && result !== false) {
       setMatchItem(item);
     }
   };
@@ -43,7 +48,7 @@ export default function SwipeDeck<T extends { id: string }>({
             const isTop = idx === 0;
             return (
               <Card
-                key={item.id}
+                key={getKey(item)}
                 isTop={isTop}
                 depth={idx}
                 onSwipe={(direction) => handleSwipe(item, direction)}
@@ -81,7 +86,7 @@ export default function SwipeDeck<T extends { id: string }>({
               It&apos;s a Match!
             </h2>
             <p className="max-w-xs text-sm text-neutral-300">
-              You liked it — find it in your Matches or Network tab.
+              You liked it — find it in your Matches or Chat tab.
             </p>
             <button
               onClick={() => setMatchItem(null)}

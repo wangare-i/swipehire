@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
 
@@ -11,18 +12,45 @@ export default function AuthGate({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, idToken, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const isPublic = PUBLIC_PATHS.includes(pathname);
 
-  useEffect(() => {
-    if (loading) return;
-    if (!user && !isPublic) router.replace("/login");
-    if (user && isPublic) router.replace("/");
-  }, [user, loading, isPublic, router]);
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    // Fetching profile completeness in response to the token changing (login,
+    // logout, or a fresh session restore) — a standard "sync with an
+    // external system on dependency change" effect.
+    if (!idToken) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHasProfile(null);
+      return;
+    }
+    apiFetch("/profile", idToken)
+      .then((r) => setHasProfile(r.ok))
+      .catch(() => setHasProfile(null));
+  }, [idToken]);
+
+  const profileChecked = !user || hasProfile !== null;
+
+  useEffect(() => {
+    if (loading || !profileChecked) return;
+    if (!user && !isPublic) {
+      router.replace("/login");
+      return;
+    }
+    if (user && isPublic) {
+      router.replace("/");
+      return;
+    }
+    if (user && hasProfile === false && pathname !== "/profile") {
+      router.replace("/profile");
+    }
+  }, [user, loading, isPublic, hasProfile, profileChecked, pathname, router]);
+
+  if (loading || (user && !profileChecked)) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-neutral-500">
         Loading…
@@ -32,6 +60,7 @@ export default function AuthGate({
 
   if (!user && !isPublic) return null;
   if (user && isPublic) return null;
+  if (user && hasProfile === false && pathname !== "/profile") return null;
 
   return <>{children}</>;
 }

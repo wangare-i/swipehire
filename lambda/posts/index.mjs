@@ -30,14 +30,15 @@ export const handler = async (event) => {
   }
 
   if (method === "POST") {
-    const { author, content } = JSON.parse(event.body || "{}");
+    const claims = event.requestContext.authorizer.jwt.claims;
+    const { content } = JSON.parse(event.body || "{}");
     if (!content || !content.trim()) return json(400, { error: "content required" });
 
     const post = {
       id: randomUUID(),
-      author: author?.trim() || "You",
-      content: content.trim(),
+      author: claims.name || "Someone",
       createdAt: new Date().toISOString(),
+      content: content.trim(),
       likes: 0,
     };
     await ddb.send(

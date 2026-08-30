@@ -2,11 +2,14 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   ScanCommand,
+  QueryCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 
 const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client);
+const JOBS_TABLE = process.env.DYNAMODB_JOBS_TABLE;
+const SWIPES_TABLE = process.env.DYNAMODB_SWIPES_TABLE;
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -15,12 +18,20 @@ const json = (statusCode, body) => ({
 });
 
 export const handler = async (event) => {
+  const claims = event.requestContext.authorizer.jwt.claims;
   const method = event.requestContext.http.method;
 
   if (method === "GET") {
     const [jobsRes, swipesRes] = await Promise.all([
-      ddb.send(new ScanCommand({ TableName: process.env.DYNAMODB_JOBS_TABLE })),
-      ddb.send(new ScanCommand({ TableName: process.env.DYNAMODB_SWIPES_TABLE })),
+      ddb.send(new ScanCommand({ TableName: JOBS_TABLE })),
+      ddb.send(
+        new QueryCommand({
+          TableName: SWIPES_TABLE,
+          IndexName: "userId-targetId-index",
+          KeyConditionExpression: "userId = :u",
+          ExpressionAttributeValues: { ":u": claims.sub },
+        })
+      ),
     ]);
     const jobsById = new Map((jobsRes.Items || []).map((j) => [j.id, j]));
     const matches = (swipesRes.Items || [])
@@ -34,10 +45,13 @@ export const handler = async (event) => {
   if (method === "PATCH") {
     const { swipeId, status } = JSON.parse(event.body || "{}");
     if (!swipeId || !status) return json(400, { error: "missing fields" });
+    if (!swipeId.startsWith(`${claims.sub}#`)) {
+      return json(403, { error: "not your match" });
+    }
 
     await ddb.send(
       new UpdateCommand({
-        TableName: process.env.DYNAMODB_SWIPES_TABLE,
+        TableName: SWIPES_TABLE,
         Key: { id: swipeId },
         UpdateExpression: "SET #s = :s, updatedAt = :u",
         ExpressionAttributeNames: { "#s": "status" },

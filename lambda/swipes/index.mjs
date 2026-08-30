@@ -1,9 +1,14 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
-import { randomUUID } from "crypto";
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  QueryCommand,
+} from "@aws-sdk/lib-dynamodb";
 
 const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client);
+const SWIPES_TABLE = process.env.DYNAMODB_SWIPES_TABLE;
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -12,26 +17,49 @@ const json = (statusCode, body) => ({
 });
 
 export const handler = async (event) => {
-  const { targetType, targetId, direction } = JSON.parse(event.body || "{}");
+  const claims = event.requestContext.authorizer.jwt.claims;
+  const userId = claims.sub;
 
+  const { targetType, targetId, direction } = JSON.parse(event.body || "{}");
   if (!targetType || !targetId || !direction) {
     return json(400, { error: "missing fields" });
   }
 
+  const id = `${userId}#${targetId}`;
   const now = new Date().toISOString();
+
+  let status;
+  if (targetType === "job" && direction === "like") {
+    const existing = await ddb.send(
+      new GetCommand({ TableName: SWIPES_TABLE, Key: { id } })
+    );
+    status = existing.Item?.status ?? "matched";
+  }
+
   const swipe = {
-    id: randomUUID(),
+    id,
+    userId,
     targetType,
     targetId,
     direction,
-    status: targetType === "job" && direction === "like" ? "matched" : undefined,
+    status,
     createdAt: now,
     updatedAt: now,
   };
+  await ddb.send(new PutCommand({ TableName: SWIPES_TABLE, Item: swipe }));
 
-  await ddb.send(
-    new PutCommand({ TableName: process.env.DYNAMODB_SWIPES_TABLE, Item: swipe })
-  );
+  let matched = false;
+  if (targetType === "profile" && direction === "like") {
+    const reciprocal = await ddb.send(
+      new QueryCommand({
+        TableName: SWIPES_TABLE,
+        IndexName: "userId-targetId-index",
+        KeyConditionExpression: "userId = :u AND targetId = :t",
+        ExpressionAttributeValues: { ":u": targetId, ":t": userId },
+      })
+    );
+    matched = reciprocal.Items?.[0]?.direction === "like";
+  }
 
-  return json(200, swipe);
+  return json(200, { swipe, matched });
 };

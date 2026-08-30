@@ -1,3 +1,5 @@
+export type Role = "jobseeker" | "recruiter";
+
 export type Job = {
   id: string;
   company: string;
@@ -9,21 +11,30 @@ export type Job = {
   description: string;
   color: string;
   postedAt: string;
+  recruiterId?: string;
 };
 
-export type Recruiter = {
-  id: string;
+export type Profile = {
+  userId: string;
+  role: Role;
   name: string;
-  title: string;
-  company: string;
+  contact: string;
   bio: string;
-  specialties: string[];
   color: string;
   initials: string;
+  createdAt: string;
+  updatedAt: string;
+  // jobseeker fields
+  title?: string;
+  skills?: string[];
+  location?: string;
+  // recruiter fields
+  company?: string;
+  specialties?: string[];
 };
 
 export type SwipeDirection = "like" | "pass";
-export type TargetType = "job" | "recruiter";
+export type TargetType = "job" | "profile";
 export type ApplicationStatus =
   | "matched"
   | "applied"
@@ -33,12 +44,25 @@ export type ApplicationStatus =
 
 export type Swipe = {
   id: string;
+  userId: string;
   targetType: TargetType;
   targetId: string;
   direction: SwipeDirection;
   status?: ApplicationStatus;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MatchSummary = {
+  matchId: string;
+  profile: Profile;
+};
+
+export type Message = {
+  matchId: string;
+  createdAt: string;
+  senderId: string;
+  content: string;
 };
 
 export type Post = {

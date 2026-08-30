@@ -4,40 +4,67 @@ import { useEffect, useState } from "react";
 import { Flame, Briefcase, Users2, LogOut } from "lucide-react";
 import SwipeDeck from "@/components/SwipeDeck";
 import JobCard from "@/components/JobCard";
-import RecruiterCard from "@/components/RecruiterCard";
-import type { Job, Recruiter } from "@/lib/types";
+import ProfileCard from "@/components/ProfileCard";
+import type { Job, Profile } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 type Mode = "jobs" | "recruiters";
 
 export default function DiscoverPage() {
-  const { idToken, signOut } = useAuth();
+  const { idToken, user, signOut } = useAuth();
+  const isRecruiter = user?.role === "recruiter";
   const [mode, setMode] = useState<Mode>("jobs");
   const [jobs, setJobs] = useState<Job[] | null>(null);
-  const [recruiters, setRecruiters] = useState<Recruiter[] | null>(null);
+  const [recruiters, setRecruiters] = useState<Profile[] | null>(null);
+  const [candidates, setCandidates] = useState<Profile[] | null>(null);
 
   useEffect(() => {
-    apiFetch("/jobs", idToken)
-      .then((r) => r.json())
-      .then(setJobs)
-      .catch(() => setJobs([]));
-    apiFetch("/recruiters", idToken)
-      .then((r) => r.json())
-      .then(setRecruiters)
-      .catch(() => setRecruiters([]));
-  }, [idToken]);
+    if (!idToken) return;
+    if (isRecruiter) {
+      apiFetch("/candidates", idToken)
+        .then((r) => r.json())
+        .then(setCandidates)
+        .catch(() => setCandidates([]));
+    } else {
+      apiFetch("/jobs", idToken)
+        .then((r) => r.json())
+        .then(setJobs)
+        .catch(() => setJobs([]));
+      apiFetch("/recruiters", idToken)
+        .then((r) => r.json())
+        .then(setRecruiters)
+        .catch(() => setRecruiters([]));
+    }
+  }, [idToken, isRecruiter]);
 
-  const swipe = async (
-    targetType: "job" | "recruiter",
-    targetId: string,
-    direction: "like" | "pass"
-  ) => {
+  const swipeJob = async (job: Job, direction: "like" | "pass") => {
+    setJobs((prev) => prev?.filter((j) => j.id !== job.id) ?? null);
     await apiFetch("/swipes", idToken, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetType, targetId, direction }),
+      body: JSON.stringify({ targetType: "job", targetId: job.id, direction }),
     });
+  };
+
+  const swipeProfile = async (
+    profile: Profile,
+    direction: "like" | "pass",
+    onDeck: React.Dispatch<React.SetStateAction<Profile[] | null>>
+  ) => {
+    onDeck((prev) => prev?.filter((p) => p.userId !== profile.userId) ?? null);
+    const res = await apiFetch("/swipes", idToken, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "profile",
+        targetId: profile.userId,
+        direction,
+      }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.matched;
   };
 
   return (
@@ -48,7 +75,7 @@ export default function DiscoverPage() {
           <h1 className="text-xl font-extrabold tracking-tight">AjiraSwipe</h1>
         </div>
         <div className="flex items-center gap-2">
-          <ModeToggle mode={mode} setMode={setMode} />
+          {!isRecruiter && <ModeToggle mode={mode} setMode={setMode} />}
           <button
             onClick={signOut}
             aria-label="Sign out"
@@ -60,17 +87,33 @@ export default function DiscoverPage() {
       </header>
 
       <div className="min-h-0 flex-1">
-        {mode === "jobs" ? (
+        {isRecruiter ? (
+          candidates === null ? (
+            <Loading />
+          ) : (
+            <SwipeDeck
+              items={candidates}
+              getKey={(p) => p.userId}
+              renderCard={(p) => <ProfileCard profile={p} />}
+              onSwipe={(p, direction) => swipeProfile(p, direction, setCandidates)}
+              emptyState={
+                <EmptyState
+                  icon={<Users2 size={40} className="text-pink-500" />}
+                  title="No more candidates"
+                  subtitle="You've seen everyone in the deck. Check back later."
+                />
+              }
+            />
+          )
+        ) : mode === "jobs" ? (
           jobs === null ? (
             <Loading />
           ) : (
             <SwipeDeck
               items={jobs}
+              getKey={(job) => job.id}
               renderCard={(job) => <JobCard job={job} />}
-              onSwipe={(job, direction) => {
-                setJobs((prev) => prev?.filter((j) => j.id !== job.id) ?? null);
-                swipe("job", job.id, direction);
-              }}
+              onSwipe={swipeJob}
               emptyState={
                 <EmptyState
                   icon={<Briefcase size={40} className="text-pink-500" />}
@@ -85,13 +128,9 @@ export default function DiscoverPage() {
         ) : (
           <SwipeDeck
             items={recruiters}
-            renderCard={(r) => <RecruiterCard recruiter={r} />}
-            onSwipe={(r, direction) => {
-              setRecruiters(
-                (prev) => prev?.filter((x) => x.id !== r.id) ?? null
-              );
-              swipe("recruiter", r.id, direction);
-            }}
+            getKey={(p) => p.userId}
+            renderCard={(p) => <ProfileCard profile={p} />}
+            onSwipe={(p, direction) => swipeProfile(p, direction, setRecruiters)}
             emptyState={
               <EmptyState
                 icon={<Users2 size={40} className="text-pink-500" />}

@@ -14,6 +14,9 @@ const json = (statusCode, body) => ({
 
 export const handler = async (event) => {
   const claims = event.requestContext.authorizer.jwt.claims;
+  if (claims["custom:role"] !== "recruiter") {
+    return json(403, { error: "only recruiters can browse candidates" });
+  }
 
   const [profilesRes, swipesRes] = await Promise.all([
     ddb.send(new ScanCommand({ TableName: PROFILES_TABLE })),
@@ -29,7 +32,7 @@ export const handler = async (event) => {
 
   const swiped = new Set((swipesRes.Items || []).map((s) => s.targetId));
   const deck = (profilesRes.Items || []).filter(
-    (p) => p.role === "recruiter" && p.userId !== claims.sub && !swiped.has(p.userId)
+    (p) => p.role === "jobseeker" && p.userId !== claims.sub && !swiped.has(p.userId)
   );
 
   return json(200, deck);

@@ -5,6 +5,7 @@ import { Heart, Plus, Briefcase } from "lucide-react";
 import type { Job, Swipe, ApplicationStatus } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import JobStatusChart from "@/components/JobStatusChart";
 
 type Match = { swipe: Swipe; job: Job };
 
@@ -60,6 +61,10 @@ function JobSeekerMatches() {
         <Heart className="text-pink-500" size={24} fill="currentColor" />
         <h1 className="text-xl font-extrabold tracking-tight">Matches</h1>
       </header>
+
+      {matches && matches.length > 0 && (
+        <JobStatusChart statuses={matches.map((m) => m.swipe.status ?? "matched")} />
+      )}
 
       {matches === null ? (
         <p className="mt-10 text-center text-sm text-neutral-500">Loading…</p>

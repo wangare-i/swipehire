@@ -56,6 +56,8 @@ export type Swipe = {
 export type MatchSummary = {
   matchId: string;
   profile: Profile;
+  matchedAt: string;
+  lastMessageAt: string | null;
 };
 
 export type Message = {

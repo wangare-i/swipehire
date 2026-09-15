@@ -5,6 +5,7 @@ const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client);
 const SWIPES_TABLE = process.env.DYNAMODB_SWIPES_TABLE;
 const PROFILES_TABLE = process.env.DYNAMODB_PROFILES_TABLE;
+const MESSAGES_TABLE = process.env.DYNAMODB_MESSAGES_TABLE;
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -14,6 +15,19 @@ const json = (statusCode, body) => ({
 
 function matchId(a, b) {
   return [a, b].sort().join("#");
+}
+
+async function latestMessageAt(id) {
+  const res = await ddb.send(
+    new QueryCommand({
+      TableName: MESSAGES_TABLE,
+      KeyConditionExpression: "matchId = :m",
+      ExpressionAttributeValues: { ":m": id },
+      ScanIndexForward: false,
+      Limit: 1,
+    })
+  );
+  return res.Items?.[0]?.createdAt ?? null;
 }
 
 export const handler = async (event) => {
@@ -43,16 +57,20 @@ export const handler = async (event) => {
         ExpressionAttributeValues: { ":u": like.targetId, ":t": userId },
       })
     );
-    if (theirs.Items?.[0]?.direction !== "like") continue;
+    const theirSwipe = theirs.Items?.[0];
+    if (theirSwipe?.direction !== "like") continue;
 
-    const profileRes = await ddb.send(
-      new GetCommand({ TableName: PROFILES_TABLE, Key: { userId: like.targetId } })
-    );
+    const [profileRes, lastMessageAt] = await Promise.all([
+      ddb.send(new GetCommand({ TableName: PROFILES_TABLE, Key: { userId: like.targetId } })),
+      latestMessageAt(matchId(userId, like.targetId)),
+    ]);
     if (!profileRes.Item) continue;
 
     results.push({
       matchId: matchId(userId, like.targetId),
       profile: profileRes.Item,
+      matchedAt: like.createdAt > theirSwipe.createdAt ? like.createdAt : theirSwipe.createdAt,
+      lastMessageAt,
     });
   }
 

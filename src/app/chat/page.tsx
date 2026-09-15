@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MessageSquare, Send } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { isMatchUnread, markMatchSeen } from "@/lib/chatSeen";
 import type { MatchSummary, Message } from "@/lib/types";
 
 const POLL_MS = 3000;
@@ -16,12 +17,25 @@ export default function ChatPage() {
   useEffect(() => {
     apiFetch("/matches", idToken)
       .then((r) => r.json())
-      .then(setMatches)
+      .then((data: MatchSummary[]) => {
+        const sorted = [...data].sort((a, b) =>
+          (b.lastMessageAt ?? b.matchedAt).localeCompare(a.lastMessageAt ?? a.matchedAt)
+        );
+        setMatches(sorted);
+      })
       .catch(() => setMatches([]));
   }, [idToken]);
 
   if (active) {
-    return <Thread match={active} onBack={() => setActive(null)} />;
+    return (
+      <Thread
+        match={active}
+        onBack={() => {
+          setActive(null);
+          setMatches((prev) => (prev ? [...prev] : prev));
+        }}
+      />
+    );
   }
 
   return (
@@ -42,30 +56,39 @@ export default function ChatPage() {
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
-          {matches.map((m) => (
-            <li key={m.matchId}>
-              <button
-                onClick={() => setActive(m)}
-                className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900 p-4 text-left shadow-sm"
-              >
-                <div
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                  style={{
-                    background: `linear-gradient(135deg, ${m.profile.color}, #0a0a0a)`,
+          {matches.map((m) => {
+            const unread = isMatchUnread(m);
+            return (
+              <li key={m.matchId}>
+                <button
+                  onClick={() => {
+                    markMatchSeen(m.matchId);
+                    setActive(m);
                   }}
+                  className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900 p-4 text-left shadow-sm"
                 >
-                  {m.profile.initials}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="truncate font-bold">{m.profile.name}</h3>
-                  <p className="truncate text-xs text-neutral-500">
-                    {m.profile.title}
-                    {m.profile.company ? ` @ ${m.profile.company}` : ""}
-                  </p>
-                </div>
-              </button>
-            </li>
-          ))}
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={{
+                      background: `linear-gradient(135deg, ${m.profile.color}, #0a0a0a)`,
+                    }}
+                  >
+                    {m.profile.initials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-bold">{m.profile.name}</h3>
+                    <p className="truncate text-xs text-neutral-500">
+                      {m.profile.title}
+                      {m.profile.company ? ` @ ${m.profile.company}` : ""}
+                    </p>
+                  </div>
+                  {unread && (
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-pink-500" />
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -88,7 +111,10 @@ function Thread({
   const load = useCallback(() => {
     apiFetch(`/messages?matchId=${encodeURIComponent(match.matchId)}`, idToken)
       .then((r) => r.json())
-      .then(setMessages)
+      .then((data: Message[]) => {
+        setMessages(data);
+        markMatchSeen(match.matchId);
+      })
       .catch(() => {});
   }, [idToken, match.matchId]);
 

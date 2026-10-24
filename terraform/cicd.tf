@@ -100,8 +100,37 @@ resource "aws_iam_role_policy" "deploy_iam_scoped" {
         Action = [
           "iam:GetRole",
           "iam:PassRole",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListRolePolicies",
+          "iam:GetRolePolicy",
         ]
         Resource = aws_iam_role.github_actions_deploy.arn
+      }
+    ]
+  })
+}
+
+# State bucket access — scoped to this one bucket, not S3 in general.
+resource "aws_iam_role_policy" "deploy_state_bucket" {
+  name = "terraform-state-bucket-access"
+  role = aws_iam_role.github_actions_deploy.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = "arn:aws:s3:::ajiraswipe-terraform-state-677078406463"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+        ]
+        Resource = "arn:aws:s3:::ajiraswipe-terraform-state-677078406463/*"
       }
     ]
   })

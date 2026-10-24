@@ -10,6 +10,16 @@ terraform {
       version = "~> 2.4"
     }
   }
+
+  # Shared state — both your machine and GitHub Actions read/write this
+  # exact file, so neither one ever operates from a blank slate. Locking
+  # uses S3's native lockfile support (no separate DynamoDB table needed).
+  backend "s3" {
+    bucket       = "ajiraswipe-terraform-state-677078406463"
+    key          = "ajiraswipe/terraform.tfstate"
+    region       = "eu-west-2"
+    use_lockfile = true
+  }
 }
 
 provider "aws" {

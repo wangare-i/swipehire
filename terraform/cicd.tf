@@ -26,7 +26,10 @@ resource "aws_iam_role" "github_actions_deploy" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:wangare-i/swipehire:*"
+            # GitHub's "immutable subject claim" format (auto-enabled for
+            # repos created after 2026-07-15): numeric owner/repo IDs, not
+            # names — Settings > Actions > OIDC shows the exact prefix.
+            "token.actions.githubusercontent.com:sub" = "repo:wangare-i@75728945/swipehire@1347676362:*"
           }
         }
       }

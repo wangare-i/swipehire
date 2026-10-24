@@ -43,6 +43,16 @@ resource "aws_cognito_user_pool" "main" {
   mfa_configuration        = "OFF"
   deletion_protection      = "ACTIVE"
 
+  # Was silently set to "admin_only" (no self-service recovery at all) —
+  # every email is auto-verified at signup by the pre-signup trigger, so
+  # verified_email is safe to enable for ForgotPassword/ConfirmForgotPassword.
+  account_recovery_setting {
+    recovery_mechanism {
+      name     = "verified_email"
+      priority = 1
+    }
+  }
+
   password_policy {
     minimum_length                   = 8
     require_lowercase                = true

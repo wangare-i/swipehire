@@ -2,6 +2,8 @@ import {
   CognitoIdentityProviderClient,
   SignUpCommand,
   InitiateAuthCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 
 const REGION = process.env.NEXT_PUBLIC_COGNITO_REGION!;
@@ -71,4 +73,25 @@ export async function signIn(
     accessToken: result.AccessToken,
     refreshToken: result.RefreshToken,
   };
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  await client.send(
+    new ForgotPasswordCommand({ ClientId: CLIENT_ID, Username: email })
+  );
+}
+
+export async function confirmForgotPassword(
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<void> {
+  await client.send(
+    new ConfirmForgotPasswordCommand({
+      ClientId: CLIENT_ID,
+      Username: email,
+      ConfirmationCode: code,
+      Password: newPassword,
+    })
+  );
 }

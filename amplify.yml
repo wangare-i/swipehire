@@ -1,0 +1,22 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        # npm ci fails here: @tailwindcss/oxide's optional native/WASM
+        # dependencies resolve differently on Amplify's Linux build image
+        # than on a local macOS install, so the lockfile can never satisfy
+        # npm ci's strict exact-match requirement across both platforms.
+        # npm install resolves correctly for the current platform instead.
+        - npm install
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*

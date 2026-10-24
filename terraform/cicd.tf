@@ -1,8 +1,8 @@
 # Lets GitHub Actions authenticate to AWS with short-lived, per-run
 # credentials instead of a long-lived access key sitting in GitHub Secrets.
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
   # GitHub's current OIDC signing CA thumbprint (DigiCert Global Root CA) —
   # the old, widely-copied tutorial value (6938fd...) is stale since
   # GitHub's 2023 certificate migration.
